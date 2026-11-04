@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сроки годности</title>
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Сроки годности">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #1f2933;
+    --muted: #6b7785;
+    --border: #d5dbe3;
+    --accent: #2563eb;
+    --accent-dark: #1d4ed8;
+    --ok: #15803d;
+    --warn: #b45309;
+    --bad: #b91c1c;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 16px;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.4;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  h1 { font-size: 22px; margin: 4px 0 16px; }
+  h2 { font-size: 17px; margin: 0 0 12px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .row { display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); }
+  .row.four { grid-template-columns: 2fr 1fr 1fr 1fr; }
+  @media (max-width: 680px) {
+    .row, .row.four { grid-template-columns: 1fr; }
+  }
+  label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  input[type="text"], input[type="date"], input[type="number"] {
+    width: 100%;
+    padding: 9px 10px;
+    font-size: 15px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: #fff;
+    color: var(--text);
+  }
+  input[readonly] { background: #eef2f7; font-weight: 600; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+  button {
+    padding: 9px 16px;
+    font-size: 15px;
+    border: 1px solid var(--accent);
+    background: var(--accent);
+    color: #fff;
+    border-radius: 7px;
+    cursor: pointer;
+  }
+  button:hover:not(:disabled) { background: var(--accent-dark); }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  button.secondary { background: #fff; color: var(--accent); }
+  button.secondary:hover:not(:disabled) { background: #eff4ff; }
+  button.danger { background: #fff; color: var(--bad); border-color: var(--bad); padding: 5px 10px; font-size: 13px; }
+  button.danger:hover { background: #fef2f2; }
+  .actions { margin-top: 14px; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .hint { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
+  .error { color: var(--bad); font-size: 13px; margin-top: 8px; min-height: 18px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: 12.5px; }
+  .st-ok { color: var(--ok); font-weight: 600; }
+  .st-warn { color: var(--warn); font-weight: 600; }
+  .st-bad { color: var(--bad); font-weight: 600; }
+  .empty { color: var(--muted); padding: 10px 0; }
+  .check { display: flex; align-items: center; gap: 8px; font-size: 15px; color: var(--text); margin: 0; cursor: pointer; }
+  .check input { width: 18px; height: 18px; }
+  textarea {
+    width: 100%;
+    min-height: 160px;
+    margin-top: 12px;
+    padding: 10px;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: #fafbfc;
+    color: var(--text);
+    resize: vertical;
+  }
+  #reportBox { display: none; }
+  #reportBox.on { display: block; }
+  .tablewrap { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Подсчёт сроков годности</h1>
+
+  <!-- Быстрый калькулятор без примечаний -->
+  <div class="card">
+    <h2>Быстрый расчёт</h2>
+    <div class="row">
+      <div>
+        <label for="qDate">Дата изготовления</label>
+        <input type="date" id="qDate">
+      </div>
+      <div>
+        <label for="qMonths">Срок хранения (месяцев)</label>
+        <input type="number" id="qMonths" min="0" max="1200" step="1" placeholder="например, 12">
+      </div>
+      <div>
+        <label for="qEnd">Дата окончания срока годности</label>
+        <input type="text" id="qEnd" readonly placeholder="—">
+      </div>
+    </div>
+    <div class="hint" id="qInfo"></div>
+  </div>
+
+  <!-- Записи -->
+  <div class="card">
+    <h2>Записи с примечаниями</h2>
+    <div class="row four">
+      <div>
+        <label for="rNote">Примечание</label>
+        <input type="text" id="rNote" placeholder="Название, партия, место...">
+      </div>
+      <div>
+        <label for="rDate">Дата выпуска</label>
+        <input type="date" id="rDate">
+      </div>
+      <div>
+        <label for="rMonths">Срок годности (мес.)</label>
+        <input type="number" id="rMonths" min="0" max="1200" step="1" placeholder="12">
+      </div>
+      <div>
+        <label for="rEnd">Годен до</label>
+        <input type="text" id="rEnd" readonly placeholder="—">
+      </div>
+    </div>
+    <div class="actions">
+      <button id="addBtn">Добавить запись</button>
+      <button id="clearBtn" class="secondary">Очистить все записи</button>
+    </div>
+    <div class="error" id="rError"></div>
+
+    <div class="tablewrap">
+      <table id="tbl" style="display:none">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Примечание</th>
+            <th>Дата выпуска</th>
+            <th>Срок (мес.)</th>
+            <th>Годен до</th>
+            <th>Статус</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="emptyMsg">Записей пока нет.</div>
+  </div>
+
+  <!-- Отчёт -->
+  <div class="card">
+    <h2>Отчёт</h2>
+    <label class="check">
+      <input type="checkbox" id="reportChk">
+      Создать отчёт
+    </label>
+    <div id="reportBox">
+      <textarea id="reportText" readonly></textarea>
+      <div class="actions">
+        <button id="exportBtn" disabled>Экспорт в txt</button>
+      </div>
+    </div>
+    <div class="hint">Отметьте галочку, чтобы сформировать отчёт и включить кнопку экспорта.</div>
+  </div>
+</div>
+
+<script>
+(function () {
+  var STORE_KEY = "srok_godnosti_records_v1";
+  var records = [];
+
+  function $(id) { return document.getElementById(id); }
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+
+  // Разбор yyyy-mm-dd в локальную дату (без сдвигов часового пояса)
+  function parseISO(s) {
+    if (!s) return null;
+    var p = s.split("-");
+    if (p.length !== 3) return null;
+    var y = +p[0], m = +p[1], d = +p[2];
+    if (!y || !m || !d) return null;
+    var dt = new Date(y, m - 1, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m - 1 || dt.getDate() !== d) return null;
+    return dt;
+  }
+
+  function toISO(dt) {
+    return dt.getFullYear() + "-" + pad(dt.getMonth() + 1) + "-" + pad(dt.getDate());
+  }
+
+  function fmt(dt) {
+    return pad(dt.getDate()) + "." + pad(dt.getMonth() + 1) + "." + dt.getFullYear();
+  }
+
+  // Прибавить месяцы; если в конечном месяце нет такого дня — берётся последний день месяца
+  function addMonths(dt, months) {
+    var y = dt.getFullYear();
+    var m = dt.getMonth() + months;
+    var d = dt.getDate();
+    var target = new Date(y, m, 1);
+    var lastDay = new Date(target.getFullYear(), target.getMonth() + 1, 0).getDate();
+    return new Date(target.getFullYear(), target.getMonth(), Math.min(d, lastDay));
+  }
+
+  function today() {
+    var n = new Date();
+    return new Date(n.getFullYear(), n.getMonth(), n.getDate());
+  }
+
+  function daysBetween(a, b) {
+    return Math.round((b.getTime() - a.getTime()) / 86400000);
+  }
+
+  function readMonths(v) {
+    if (v === "" || v === null) return null;
+    var n = Number(v);
+    if (!isFinite(n) || n < 0 || Math.floor(n) !== n) return null;
+    return n;
+  }
+
+  function plural(n, one, few, many) {
+    var a = Math.abs(n) % 100, b = a % 10;
+    if (a > 10 && a < 20) return many;
+    if (b > 1 && b < 5) return few;
+    if (b === 1) return one;
+    return many;
+  }
+
+  function statusOf(endDt) {
+    var left = daysBetween(today(), endDt);
+    if (left < 0) {
+      var k = -left;
+      return { cls: "st-bad", text: "Просрочен на " + k + " " + plural(k, "день", "дня", "дней") };
+    }
+    if (left === 0) return { cls: "st-warn", text: "Истекает сегодня" };
+    if (left <= 30) return { cls: "st-warn", text: "Осталось " + left + " " + plural(left, "день", "дня", "дней") };
+    return { cls: "st-ok", text: "Осталось " + left + " " + plural(left, "день", "дня", "дней") };
+  }
+
+  function statusPlain(endDt) {
+    return statusOf(endDt).text;
+  }
+
+  // --- Быстрый расчёт ---
+  function calcQuick() {
+    var d = parseISO($("qDate").value);
+    var m = readMonths($("qMonths").value);
+    var info = $("qInfo");
+    if (!d || m === null) {
+      $("qEnd").value = "";
+      info.textContent = "";
+      return;
+    }
+    var end = addMonths(d, m);
+    $("qEnd").value = fmt(end);
+    info.textContent = statusPlain(end);
+  }
+
+  // --- Расчёт в форме записи ---
+  function calcRecordForm() {
+    var d = parseISO($("rDate").value);
+    var m = readMonths($("rMonths").value);
+    $("rEnd").value = (d && m !== null) ? fmt(addMonths(d, m)) : "";
+  }
+
+  // --- Хранилище ---
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(records)); } catch (e) {}
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (raw) {
+        var arr = JSON.parse(raw);
+        if (Array.isArray(arr)) records = arr;
+      }
+    } catch (e) { records = []; }
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+
+  // --- Отрисовка таблицы ---
+  function render() {
+    var tbody = $("tbody");
+    tbody.innerHTML = "";
+    if (!records.length) {
+      $("tbl").style.display = "none";
+      $("emptyMsg").style.display = "block";
+    } else {
+      $("tbl").style.display = "table";
+      $("emptyMsg").style.display = "none";
+      records.forEach(function (r, i) {
+        var made = parseISO(r.made);
+        var end = made ? addMonths(made, r.months) : null;
+        var st = end ? statusOf(end) : { cls: "", text: "" };
+        var tr = document.createElement("tr");
+        tr.innerHTML =
+          "<td>" + (i + 1) + "</td>" +
+          "<td>" + escapeHtml(r.note || "—") + "</td>" +
+          "<td>" + (made ? fmt(made) : "—") + "</td>" +
+          "<td>" + r.months + "</td>" +
+          "<td>" + (end ? fmt(end) : "—") + "</td>" +
+          '<td class="' + st.cls + '">' + st.text + "</td>" +
+          '<td><button class="danger" data-i="' + i + '">Удалить</button></td>';
+        tbody.appendChild(tr);
+      });
+    }
+    updateReport();
+  }
+
+  // --- Отчёт ---
+  function buildReport() {
+    var now = new Date();
+    var lines = [];
+    lines.push("ОТЧЁТ О СРОКАХ ГОДНОСТИ");
+    lines.push("Дата формирования: " + fmt(now) + " " + pad(now.getHours()) + ":" + pad(now.getMinutes()));
+    lines.push("Всего записей: " + records.length);
+    lines.push("========================================");
+    if (!records.length) {
+      lines.push("Записей нет.");
+    }
+    records.forEach(function (r, i) {
+      var made = parseISO(r.made);
+      var end = made ? addMonths(made, r.months) : null;
+      lines.push("");
+      lines.push((i + 1) + ". Примечание: " + (r.note || "—"));
+      lines.push("   Дата выпуска: " + (made ? fmt(made) : "—"));
+      lines.push("   Срок годности: " + r.months + " мес.");
+      lines.push("   Годен до: " + (end ? fmt(end) : "—"));
+      lines.push("   Статус: " + (end ? statusPlain(end) : "—"));
+    });
+    return lines.join("\r\n");
+  }
+
+  function updateReport() {
+    var on = $("reportChk").checked;
+    $("reportBox").classList.toggle("on", on);
+    $("exportBtn").disabled = !on || !records.length;
+    if (on) $("reportText").value = buildReport();
+  }
+
+  function exportTxt() {
+    var text = "\uFEFF" + buildReport(); // BOM, чтобы кириллица открывалась корректно в Блокноте
+    var blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    var now = new Date();
+    var name = "otchet_sroki_godnosti_" + now.getFullYear() + pad(now.getMonth() + 1) + pad(now.getDate()) + ".txt";
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 1000);
+  }
+
+  // --- События ---
+  $("qDate").addEventListener("input", calcQuick);
+  $("qMonths").addEventListener("input", calcQuick);
+  $("rDate").addEventListener("input", calcRecordForm);
+  $("rMonths").addEventListener("input", calcRecordForm);
+
+  $("addBtn").addEventListener("click", function () {
+    var err = $("rError");
+    var d = parseISO($("rDate").value);
+    var m = readMonths($("rMonths").value);
+    if (!d) { err.textContent = "Укажите корректную дату выпуска."; return; }
+    if (m === null) { err.textContent = "Срок годности — целое число месяцев (0 или больше)."; return; }
+    err.textContent = "";
+    records.push({
+      note: $("rNote").value.trim(),
+      made: toISO(d),
+      months: m
+    });
+    save();
+    $("rNote").value = "";
+    $("rDate").value = "";
+    $("rMonths").value = "";
+    $("rEnd").value = "";
+    render();
+    $("rNote").focus();
+  });
+
+  $("tbody").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-i]");
+    if (!b) return;
+    records.splice(+b.getAttribute("data-i"), 1);
+    save();
+    render();
+  });
+
+  $("clearBtn").addEventListener("click", function () {
+    if (!records.length) return;
+    if (confirm("Удалить все записи?")) {
+      records = [];
+      save();
+      render();
+    }
+  });
+
+  $("reportChk").addEventListener("change", updateReport);
+  $("exportBtn").addEventListener("click", exportTxt);
+
+  load();
+  render();
+})();
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
